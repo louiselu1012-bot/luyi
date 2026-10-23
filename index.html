@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>PYTHON FRUIT CATCHER</title>
+<style>
+  :root { --ink:#18212f; --cream:#fff6d8; --pink:#ff6f91; --mint:#9be7c4; --yellow:#ffd166; --blue:#7bdff2; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#171b35; color:var(--cream); font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  button,input { font:inherit; }
+  .wrap { max-width:1000px; margin:auto; padding:14px; }
+  .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:10px; }
+  h1 { font-size:clamp(18px,4vw,30px); margin:0; letter-spacing:1px; color:var(--yellow); text-shadow:3px 3px #8d4663; }
+  .sub { color:#c5cae9; font-size:12px; margin-top:5px; }
+  .stats { display:flex; gap:8px; flex-wrap:wrap; }
+  .stat { border:3px solid #f5e6b8; background:#282e54; padding:8px 10px; min-width:92px; text-align:center; box-shadow:3px 3px #0b0d1d; }
+  .stat small { display:block; font-size:10px; color:#b9c3ed; margin-bottom:4px; }
+  .stat strong { font-size:18px; color:white; }
+  .panel { background:#24294c; border:3px solid #f5e6b8; box-shadow:5px 5px #0b0d1d; padding:12px; margin-bottom:12px; }
+  .qline { display:flex; gap:10px; align-items:flex-start; }
+  .qnum { background:var(--pink); color:#251a32; font-weight:900; padding:7px 9px; white-space:nowrap; }
+  #question { font-size:clamp(15px,2.6vw,22px); line-height:1.4; font-weight:bold; }
+  #hint { color:#c5cae9; font-size:12px; margin-top:7px; }
+  canvas { width:100%; display:block; border:4px solid #f5e6b8; background:#11172f; image-rendering:pixelated; touch-action:none; box-shadow:5px 5px #0b0d1d; }
+  .controls { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+  .controls button { border:3px solid #f5e6b8; box-shadow:3px 3px #0b0d1d; padding:11px 15px; font-weight:900; cursor:pointer; color:#1c2340; background:var(--mint); }
+  .controls button.secondary { background:var(--yellow); }
+  .controls button:disabled { opacity:.45; cursor:not-allowed; }
+  .group { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+  .group label { font-size:13px; color:#c5cae9; }
+  .group input { width:170px; max-width:48vw; padding:8px; border:2px solid #f5e6b8; background:#fff8e7; color:#18212f; }
+  .rules { color:#c5cae9; font-size:12px; line-height:1.7; }
+  .rules b { color:var(--cream); }
+  #message { min-height:24px; color:var(--yellow); font-weight:bold; margin-top:10px; }
+  .footer { text-align:center; color:#7f89bd; font-size:11px; padding:10px 0 4px; }
+  @media (max-width:600px) { .wrap{padding:9px}.stat{min-width:75px;padding:6px}.stat strong{font-size:15px}.panel{padding:9px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>★ PYTHON FRUIT CATCHER ★</h1>
+      <div class="sub">PIXEL ARCADE · CATCH THE RIGHT ANSWER!</div>
+    </div>
+    <div class="stats">
+      <div class="stat"><small>競賽剩餘</small><strong id="globalTime">15:00</strong></div>
+      <div class="stat"><small>本局分數</small><strong id="score">0</strong></div>
+      <div class="stat"><small>最高單局</small><strong id="best">0</strong></div>
+    </div>
+  </div>
+
+  <div class="group">
+    <label for="team">組別／隊名</label>
+    <input id="team" maxlength="18" placeholder="例如：第 1 組" value="">
+    <span class="sub">每台裝置獨立計分，最後比較各組最高分。</span>
+  </div>
+
+  <div class="panel">
+    <div class="qline">
+      <div class="qnum" id="qnum">READY</div>
+      <div>
+        <div id="question">準備好接住正確的 Python 答案了嗎？</div>
+        <div id="hint">使用 ← → 或 A / D 移動果籃；手機和平板可直接在遊戲區拖曳果籃。</div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="game" width="900" height="470" aria-label="水果接接樂遊戲區"></canvas>
+  <div id="message">先輸入組別名稱，再按「開始挑戰」！</div>
+  <div class="controls">
+    <button id="start">▶ 開始挑戰</button>
+    <button id="left" class="secondary" disabled>◀ 左移</button>
+    <button id="right" class="secondary" disabled>右移 ▶</button>
+    <button id="replay" disabled>↻ 再玩一局</button>
+  </div>
+
+  <div class="panel rules" style="margin-top:14px">
+    <b>遊戲規則</b><br>
+    每局 10 題，每題 25 秒；15 分鐘內可重複挑戰。每題有 1 個正確選項與 4 個錯誤選項。<br>
+    🍎 正確答案 +100　　🍌 錯誤答案 −50　　💣 炸彈：分數 ÷2／÷5／÷10　　🌸 花朵：+10／+50／×2<br>
+    炸彈或花朵效果即時結算，分數可為負數；除法結果四捨五入至整數。撞到同一個物件只會計分一次。
+  </div>
+  <div class="footer">CLASSROOM ARCADE · LOCAL SCOREBOARD · GOOD LUCK!</div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const canvas = $('game'), ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const questions = [
+    {q:"以下哪個是合法的變數名稱？", a:["user_name","2user","user-name","class","my name"], c:0, why:"變數名稱不能以數字開頭，也不能含連字號或空格；class 是保留字。"},
+    {q:"Python 中，哪一個是整數型別？", a:['"18"',"18","18.0","True","'18'"], c:1, why:"18 是 int；加上引號會變成字串，18.0 是 float。"},
+    {q:"以下哪個值的型別是 float？", a:["7","7.0",'"7"',"False","(7,)"], c:1, why:"含小數點的數值 7.0 是 float。"},
+    {q:"執行 3 + 4 * 2，結果是多少？", a:["14","11","10","24","9"], c:1, why:"乘法優先於加法，所以 3 + 8 = 11。"},
+    {q:"Python 的次方運算子是哪一個？", a:["^","**","//","%%","^^"], c:1, why:"Python 使用 ** 表示次方，例如 2 ** 3 等於 8。"},
+    {q:"執行 10 // 3，結果是多少？", a:["3.33","1","3","0","10"], c:2, why:"// 是整數除法，10 // 3 的結果是 3。"},
+    {q:"以下哪個可以建立字串？", a:["hello","'hello'","[hello]","(hello)","{hello}"], c:1, why:"字串文字需要用引號包起來，例如 'hello'。"},
+    {q:"若 name = 'Amy'，print(name) 會顯示什麼？", a:["name","'name'","Amy","print","None"], c:2, why:"print(name) 會印出變數 name 裡儲存的字串 Amy。"},
+    {q:"以下哪個是 tuple？", a:["[1, 2]","{1, 2}","(1, 2)","'1, 2'","<1, 2>"], c:2, why:"tuple 通常用小括號表示，例如 (1, 2)。"},
+    {q:"如何建立只有一個元素 5 的 tuple？", a:["(5)","[5]","(5,)","{5}","tuple(5)"], c:2, why:"單一元素 tuple 必須加逗號：(5,)。"},
+    {q:"若 x = 5，執行 x = x + 2 後，x 是多少？", a:["5","2","7","10","x + 2"], c:2, why:"右側先算出 7，再把 7 指派給 x。"},
+    {q:"以下哪個是比較「相等」的運算子？", a:["=","==","!=",":=","==="], c:1, why:"= 是指派；== 才是比較兩個值是否相等。"},
+    {q:"若 x = 8，x > 5 的結果是？", a:["8","5","True","False","None"], c:2, why:"8 大於 5，所以條件結果是 True。"},
+    {q:"if 條件成立時，哪個區塊會執行？", a:["else 區塊","if 區塊","所有區塊","都不會","只執行 print"], c:1, why:"條件為 True 時，會執行 if 下方縮排的程式區塊。"},
+    {q:"以下哪個是正確的 if 語法？", a:["if x > 3","if x > 3:","if (x > 3) then","when x > 3:","if x > 3;"], c:1, why:"Python 的 if 條件後面要加冒號 :。"},
+    {q:"input() 接收到的內容預設是什麼型別？", a:["int","float","str","bool","tuple"], c:2, why:"input() 回傳字串；若要數字運算，通常需要轉型。"},
+    {q:"要把 input() 的結果轉成整數，應使用？", a:["str()","int()","floatstr()","number()","bool()"], c:1, why:"int() 可以把可轉換的字串轉成整數。"},
+    {q:"print(2, 3) 的預設輸出是？", a:["23","2 3","(2, 3)","2,3","錯誤"], c:1, why:"print 的多個參數預設會用空格分隔。"},
+    {q:"若 word = 'Python'，word[0] 是？", a:["P","y","n","0","Python"], c:0, why:"Python 字串索引從 0 開始，所以 word[0] 是 P。"},
+    {q:"若 x = 4，以下哪個條件會得到 True？", a:["x < 2","x == 5","x != 4","x >= 4","x > 4"], c:3, why:"4 >= 4 成立；注意 >= 表示大於或等於。"},
+    {q:"以下哪個名稱可以作為變數名稱？", a:["2nd_place","student-name","total_score","if","my score"], c:2, why:"變數不能以數字開頭、不能含連字號或空格，也不能使用 if 這類保留字。"},
+    {q:"執行 x = 5 / 2，x 的型別是什麼？", a:["int","float","str","bool","tuple"], c:1, why:"Python 的 / 一般除法會回傳 float，所以 5 / 2 是 2.5。"},
+    {q:"以下運算式的結果是多少？ 2 ** 3 * 2 + 1", a:["17","65","16","13","9"], c:0, why:"先算次方 2 ** 3 = 8，再乘 2 得 16，最後加 1 得 17。"},
+    {q:"執行 print(17 // 5, 17 % 5)，輸出為何？", a:["3 2","3.4 2","2 3","3 5","2 5"], c:0, why:"17 // 5 是 3；17 % 5 是餘數 2，print 預設以空格分隔。"},
+    {q:"執行 print(\"Py\" + \"thon\" * 2)，輸出為何？", a:["Pythonthon","PythonPython","Python2","Py thon thon","發生錯誤"], c:0, why:"字串重複先計算：\"thon\" * 2 得到 \"thonthon\"，再接上 \"Py\"，結果是 Pythonthon。"},
+    {q:"若 word = \"HELLO\"，word[1] + word[-1] 的結果是？", a:["HO","EL","EO","LO","HE"], c:2, why:"word[1] 是 E；word[-1] 是最後一個字元 O，因此結果是 EO。"},
+    {q:"執行 data = (10, 20, 30) 後，再執行 data[1] = 99，會怎樣？", a:["(10,99,30)","(99,20,30)","(10,20,30)","99","TypeError"], c:4, why:"tuple 建立後不能修改其中的元素，因此指派 data[1] = 99 會引發 TypeError。"},
+    {q:"若 point = (4, 7, 9)，print(point[0] + point[2]) 會輸出什麼？", a:["11","13","79","20","發生錯誤"], c:1, why:"point[0] 是 4，point[2] 是 9，相加結果為 13。"},
+    {q:"若 x = 6，條件 x > 3 and x < 6 不成立時，會執行哪個分支？", a:["if分支","else分支","兩者","True","錯誤"], c:1, why:"x > 3 為 True，但 x < 6 為 False；and 要求兩個條件都成立，因此整體條件為 False，會執行 else 分支。"},
+    {q:"執行 x = input()，使用者輸入 5，接著執行 print(x + 2)，會怎樣？", a:["7","52","\"5\"+2","TypeError","5"], c:3, why:"input() 回傳字串 '5'，字串不能直接和整數 2 相加，因此會發生 TypeError。"}
+  ];
+
+  let state = "ready", score = 0, best = 0, globalLeft = 900, questionLeft = 25;
+  let roundQuestions = [], qIndex = 0, basketX = W/2, objects = [], lastTime = 0;
+  let spawnTimer = 0, keys = {}, dragging = false, pointerX = W/2;
+  let messageTimer = 0, frame = 0, runStarted = false;
+  let floatingTexts = [];
+  let globalTimer = null, roundTimer = null;
+  const storedBestKey = () => "fruit-catcher-best-" + (($('team').value || "未命名").trim());
+  function loadBest(){ best = Number(localStorage.getItem(storedBestKey()) || 0); $('best').textContent = best; }
+  $('team').addEventListener('change', loadBest);
+  $('team').addEventListener('input', () => { if(state === "ready") loadBest(); });
+  loadBest();
+
+  function shuffle(arr){ return arr.map(x=>[Math.random(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]); }
+  function formatTime(s){ s=Math.max(0,Math.ceil(s)); return String(Math.floor(s/60)).padStart(2,'0')+":"+String(s%60).padStart(2,'0'); }
+  function setMessage(text){ $('message').textContent=text; messageTimer=2.4; }
+  function updateStats(){ $('score').textContent=score; $('best').textContent=best; $('globalTime').textContent=formatTime(globalLeft); }
+
+  function startChallenge(){
+    if(globalLeft <= 0) return;
+    if(!$('team').value.trim()) $('team').value="未命名組";
+    loadBest();
+    if(!runStarted){
+      runStarted=true; state="playing"; startRound();
+      $('start').disabled=true;
+      globalTimer=setInterval(()=>{
+        globalLeft=Math.max(0,globalLeft-1); $('globalTime').textContent=formatTime(globalLeft);
+        if(globalLeft<=0){ clearInterval(globalTimer); finishChallenge(); }
+      },1000);
+    } else if(state==="ready" || state==="roundover"){
+      startRound();
+    }
+  }
+
+  function startRound(){
+    if(globalLeft<=0){finishChallenge();return;}
+    score=0; objects=[]; qIndex=0; questionLeft=25; spawnTimer=0;
+    roundQuestions=shuffle([...questions]).slice(0,10);
+    state="playing"; basketX=W/2;
+    $('start').disabled=true; $('replay').disabled=true;
+    showQuestion();
+    setMessage("新的一局開始！接住正確選項，避開炸彈！");
+    updateStats();
+  }
+  function showQuestion(){
+    const item=roundQuestions[qIndex];
+    $('qnum').textContent=`QUESTION ${qIndex+1}/10`;
+    $('question').textContent=item.q;
+    $('hint').textContent="25 秒倒數中 · 正確水果 +100 · 錯誤水果 −50 · 使用 ← → / A D 或拖曳果籃";
+    questionLeft=25;
+  }
+  function nextQuestion(){
+    if(qIndex>=9){finishRound();return;}
+    qIndex++; showQuestion();
+    setMessage("下一題！繼續接！");
+  }
+  function finishRound(){
+    state="roundover"; objects=[];
+    if(score>best){best=score;localStorage.setItem(storedBestKey(),String(best));}
+    updateStats();
+    $('qnum').textContent="ROUND CLEAR";
+    $('question').textContent=`本局完成！得分 ${score} 分，最高單局 ${best} 分。`;
+    $('hint').textContent="15 分鐘競賽時間還沒結束的話，可以再挑戰一局。";
+    $('start').disabled=true; $('replay').disabled=globalLeft<=0;
+    setMessage("本局結束！按「再玩一局」挑戰更高分。");
+  }
+  function finishChallenge(){
+    state="finished"; objects=[];
+    if(score>best){best=score;localStorage.setItem(storedBestKey(),String(best));}
+    updateStats();
+    $('qnum').textContent="TIME UP!";
+    $('question').textContent=`競賽時間到！${$('team').value} 的最高單局分數：${best} 分`;
+    $('hint').textContent="請記下本組最高分，和其他組比較。重新整理頁面不會清除已保存的最高分。";
+    $('start').disabled=true; $('replay').disabled=true;
+    setMessage("時間到！請向老師回報最高分。");
+  }
+
+  $('start').addEventListener('click',startChallenge);
+  $('replay').addEventListener('click',()=>{if(globalLeft>0)startRound();});
+  window.addEventListener('keydown',e=>{
+    if(["ArrowLeft","ArrowRight","a","A","d","D"].includes(e.key)) e.preventDefault();
+    keys[e.key.toLowerCase()]=true;
+  });
+  window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
+  function canvasX(clientX){ const r=canvas.getBoundingClientRect(); return (clientX-r.left)/r.width*W; }
+  canvas.addEventListener('pointerdown',e=>{dragging=true;pointerX=canvasX(e.clientX);canvas.setPointerCapture(e.pointerId);});
+  canvas.addEventListener('pointermove',e=>{if(dragging)pointerX=canvasX(e.clientX);});
+  canvas.addEventListener('pointerup',()=>dragging=false);
+  canvas.addEventListener('pointercancel',()=>dragging=false);
+  $('left').addEventListener('pointerdown',()=>keys['arrowleft']=true);
+  $('left').addEventListener('pointerup',()=>keys['arrowleft']=false);
+  $('left').addEventListener('pointerleave',()=>keys['arrowleft']=false);
+  $('right').addEventListener('pointerdown',()=>keys['arrowright']=true);
+  $('right').addEventListener('pointerup',()=>keys['arrowright']=false);
+  $('right').addEventListener('pointerleave',()=>keys['arrowright']=false);
+
+  function spawn(){
+    const r=Math.random();
+    let type=r<.15?"bomb":r<.25?"flower":"fruit";
+    let label="", correct=false;
+    if(type==="fruit"){
+      const item=roundQuestions[qIndex];
+      const optionIndex=Math.floor(Math.random()*5);
+      label=item.a[optionIndex]; correct=optionIndex===item.c;
+    }
+    objects.push({x:24+Math.random()*(W-48),y:-30,size:type==="fruit"?46:40,vy:45+Math.random()*30,type,label,correct,dead:false,phase:Math.random()*6.28});
+  }
+  function catchObject(o){
+    if(o.dead)return; o.dead=true;
+    let effectLabel="", effectColor="#fff6d8";
+    if(o.type==="fruit"){
+      if(o.correct){score+=100;effectLabel="+100";effectColor="#9be7c4";setMessage("✔ 正確答案！ +100");}
+      else {score-=50;effectLabel="-50";effectColor="#ff6f91";setMessage("✘ 錯誤選項！ −50");}
+    } else if(o.type==="bomb"){
+      const div=[2,5,10][Math.floor(Math.random()*3)];
+      score=Math.round(score/div);effectLabel="÷"+div;effectColor="#ff6f91";setMessage(`💣 炸彈！分數 ÷ ${div}`);
+    } else {
+      const effect=Math.floor(Math.random()*3);
+      if(effect===0){score+=10;effectLabel="+10";effectColor="#ffd166";setMessage("🌸 花朵加分！ +10");}
+      else if(effect===1){score+=50;effectLabel="+50";effectColor="#ffd166";setMessage("🌸 花朵加分！ +50");}
+      else {score*=2;effectLabel="×2";effectColor="#9be7c4";setMessage("🌸 花朵加倍！ ×2");}
+    }
+    floatingTexts.push({x:basketX,y:H-90,text:effectLabel,color:effectColor,life:1,maxLife:1});
+    updateStats();
+  }
+
+  function pixelText(text,x,y,size,color,align="center"){
+    ctx.font=`bold ${size}px ui-monospace, monospace`;ctx.textAlign=align;ctx.textBaseline="middle";
+    ctx.fillStyle="#080c20";ctx.fillText(text,x+2,y+2);
+    ctx.fillStyle=color;ctx.fillText(text,x,y);
+  }
+  function drawBackground(){
+    ctx.fillStyle="#11172f";ctx.fillRect(0,0,W,H);
+    for(let y=20;y<H;y+=28){for(let x=(y%2?8:20);x<W;x+=32){ctx.fillStyle=((x+y)%3===0)?"#1d2648":"#18203d";ctx.fillRect(x,y,3,3);}}
+    ctx.fillStyle="#2f3e68";ctx.fillRect(0,H-27,W,27);
+    for(let x=0;x<W;x+=32){ctx.fillStyle="#48588a";ctx.fillRect(x,H-27,16,4);}
+  }
+  function drawFruit(o){
+    const x=o.x,y=o.y,s=o.size;
+    if(o.type==="bomb"){
+      ctx.fillStyle="#080c20";ctx.fillRect(x-s*.3,y-s*.3,s*.6,s*.6);
+      ctx.fillStyle="#30384f";ctx.fillRect(x-s*.4,y-s*.2,s*.8,s*.4);
+      ctx.fillStyle="#ff6f91";ctx.fillRect(x-4,y-s*.48,8,8);
+      ctx.fillStyle="#ffd166";ctx.fillRect(x+2,y-s*.58,7,6);
+      pixelText("!",x,y,19,"#ffffff");
+    } else if(o.type==="flower"){
+      ctx.fillStyle="#ff6f91";
+      [[0,-.28],[-.25,0],[.25,0],[0,.25]].forEach(([dx,dy])=>ctx.fillRect(x+dx*s-6,y+dy*s-6,12,12));
+      ctx.fillStyle="#ffd166";ctx.fillRect(x-6,y-6,12,12);
+      ctx.fillStyle="#9be7c4";ctx.fillRect(x-2,y+10,4,13);ctx.fillRect(x+1,y+15,10,4);
+    } else {
+      const colors=["#ff6f91","#ffd166","#9be7c4","#7bdff2","#c3a6ff"];
+      const color=colors[Math.abs(o.label.length*7+(o.correct?2:1))%colors.length];
+      ctx.fillStyle=color;ctx.fillRect(x-s*.32,y-s*.28,s*.64,s*.56);
+      ctx.fillRect(x-s*.42,y-s*.12,s*.84,s*.3);
+      ctx.fillStyle="#4d9a63";ctx.fillRect(x-3,y-s*.4,6,10);ctx.fillRect(x+2,y-s*.42,9,4);
+      ctx.fillStyle="#fff6d8";ctx.fillRect(x-s*.18,y-s*.1,4,4);ctx.fillRect(x+s*.1,y-s*.1,4,4);
+      ctx.fillStyle="#18212f";ctx.fillRect(x-s*.1,y+s*.08,10,3);
+      const label=o.label.length>10?o.label.slice(0,9)+"…":o.label;
+      ctx.fillStyle="#080c20";ctx.fillRect(x-s*.56,y+s*.35,s*1.12,19);
+      ctx.font="bold 11px ui-monospace, monospace";ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillStyle="#ffffff";ctx.fillText(label,x,y+s*.35+10);
+    }
+  }
+  function drawBasket(){
+    const x=basketX,y=H-54;
+    ctx.fillStyle="#080c20";ctx.fillRect(x-45,y+8,90,18);
+    ctx.fillStyle="#ffd166";ctx.fillRect(x-42,y,84,8);ctx.fillRect(x-34,y+8,68,8);
+    ctx.fillStyle="#b66b42";ctx.fillRect(x-38,y+16,76,12);
+    ctx.fillStyle="#f0a35e";ctx.fillRect(x-30,y+18,60,4);
+    ctx.fillStyle="#9be7c4";ctx.fillRect(x-48,y-6,96,6);
+  }
+  function drawOverlay(title,sub){
+    ctx.fillStyle="rgba(8,12,32,.78)";ctx.fillRect(90,150,W-180,130);
+    ctx.strokeStyle="#ffd166";ctx.lineWidth=4;ctx.strokeRect(90,150,W-180,130);
+    pixelText(title,W/2,190,28,"#ffd166");
+    pixelText(sub,W/2,232,15,"#fff6d8");
+  }
+  function render(){
+    drawBackground();
+    if(state==="playing"){
+      objects.forEach(drawFruit);drawBasket();
+      pixelText(`Q ${qIndex+1}/10`,20,22,14,"#ffd166","left");
+      pixelText(`${Math.ceil(questionLeft)}s`,W-20,22,16,"#7bdff2","right");
+    } else if(state==="ready"){
+      drawBasket();drawOverlay("READY PLAYER 1","PRESS START TO PLAY");
+      pixelText("FRUIT + ANSWERS + BOMBS",W/2,315,14,"#9be7c4");
+    } else if(state==="roundover"){
+      drawBasket();drawOverlay("ROUND CLEAR",`SCORE: ${score}  /  BEST: ${best}`);
+    } else if(state==="finished"){
+      drawBasket();drawOverlay("TIME UP!",`BEST SCORE: ${best}`);
+    }
+    floatingTexts.forEach(t=>{
+      const alpha=Math.max(0,Math.min(1,t.life/t.maxLife));
+      ctx.save();ctx.globalAlpha=alpha;
+      ctx.font="bold 26px ui-monospace, monospace";ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillStyle="#080c20";ctx.fillText(t.text,t.x+2,t.y+2);
+      ctx.fillStyle=t.color;ctx.fillText(t.text,t.x,t.y);
+      ctx.restore();
+    });
+  }
+
+  function loop(now){
+    const dt=Math.min((now-lastTime)/1000||0,0.05);lastTime=now;frame+=dt;
+    if(messageTimer>0){messageTimer-=dt;}
+    if(state==="playing"){
+      if(keys["arrowleft"]||keys["a"])basketX-=330*dt;
+      if(keys["arrowright"]||keys["d"])basketX+=330*dt;
+      if(dragging)basketX+=(pointerX-basketX)*Math.min(1,dt*16);
+      basketX=Math.max(50,Math.min(W-50,basketX));
+      questionLeft-=dt;
+      spawnTimer-=dt;
+      if(spawnTimer<=0){spawn();spawnTimer=.52+Math.random()*.28;}
+      objects.forEach(o=>{
+        o.y+=o.vy*dt;
+        if(o.type==="flower")o.x+=Math.sin(frame*2+o.phase)*20*dt;
+        if(!o.dead && o.y+o.size*.35>=H-63 && o.y<H-35 && Math.abs(o.x-basketX)<52)catchObject(o);
+      });
+      objects=objects.filter(o=>!o.dead&&o.y<H+50);
+      if(questionLeft<=0)nextQuestion();
+    }
+    floatingTexts.forEach(t=>{t.y-=42*dt;t.life-=dt;});
+    floatingTexts=floatingTexts.filter(t=>t.life>0);
+    $('left').disabled=!(state==="playing");$('right').disabled=!(state==="playing");
+    render();requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
