@@ -1,2 +1,0 @@
-# luyi
-python game
